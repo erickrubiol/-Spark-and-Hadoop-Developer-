@@ -1,0 +1,42 @@
+Requeriment: Get daily revenue by product considering completed and closed orders
+
+Constraints: 
+Data need to be sorted by ascending order by date and then descending order by revenue computed for each product for each day.
+
+Data for ORDERS is available in the following path:
+/retail_db/orders/public/retail_db/order_items
+
+Data for PRODUCTS is available in the following path:
+/retail_db/products
+
+Storage of final results:
+1. HDFS location Avro format: /user/erickrubio/daily_revenue_avro_python
+2. HDFS location text format: /user/erickrubio/daily_revenue_txt_python
+3. Local: /user/erickrubio/daily_revenue_python
+4. Solution need to be stored in /user/erickrubio/daily_revenue_python.txt
+
+********************************************************************************
+
+-- Connect to Spark in yarn mode
+pyspark --master yarn --conf spark.ui.port=12888
+
+-- Load sales data into an RDD
+orderItems = sc.textFile('/public/retail_db/order_items')
+
+-- Show first ten elements in RDD
+for i in orderItems.take(10): print(i)
+
+-- Select only the necesary columns
+orderItemsMap = orderItems.map(lambda oi: (int(oi.split(",")[1]), float(oi.split(",")[4])))
+
+-- Aggregate sales per Item
+revenuePerOrden = orderItemsMap.reduceByKey(lambda curr, next: curr + next)
+
+-- Open Product catalog
+productsRaw = open('/data/retail_db/products/part-00000').read().splitlines()
+
+-- Make the product list an RDD
+productsRDD = sc.parallelize(productsRaw)
+
+-- Load sales data from a json
+sqlContext.read.load('/public/retail_db_json/order_items', 'json').show()
