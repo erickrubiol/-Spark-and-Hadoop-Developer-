@@ -1,0 +1,51 @@
+version: '3.5'
+services:
+   kafka:
+     image: spotify/kafka
+     container_name: kafka
+     ports:
+       - "2181:2181"
+       - "9092:9092"
+     networks:
+       - default-network
+
+   pyspark:
+     depends_on:
+       - kafka
+     image: jupyter/pyspark-notebook
+     container_name: pyspark
+     ports:
+       - "8888:8888"
+       - "4040:4040"
+       - "4041:4041"
+     volumes:
+       - ./jars:/mnt
+       - ./notebooks:/home/erick/work
+     environment:
+       - SPARK_OPTS=--driver-java-options=-Xms1024M --driver-java-options=-Xmx4096M --driver-java-options=-Dlog4j.logLevel=info --driver-class-path /mnt/kafka-clients-2.0.0.jar:/mnt/lz4-java-1.4.1.jar:/mnt/org.osgi.core-4.3.0.jar:/mnt/scala-library-2.11.12.jar:/mnt/slf4j-api-1.7.25.jar:/mnt/snappy-java-1.1.7.1.jar:/mnt/spark-streaming-kafka-0-10_2.11-2.4.4.jar:/mnt/spark-tags_2.11-2.4.4.jar --conf spark.executor.extraClassPath=/mnt/kafka-clients-2.0.0.jar:/mnt/lz4-java-1.4.1.jar:/mnt/org.osgi.core-4.3.0.jar:/mnt/scala-library-2.11.12.jar:/mnt/slf4j-api-1.7.25.jar:/mnt/snappy-java-1.1.7.1.jar:/mnt/spark-streaming-kafka-0-10_2.11-2.4.4.jar:/mnt/spark-tags_2.11-2.4.4.jar
+     networks:
+       - default-network
+
+   hadoop:
+     depends_on:
+       - pyspark
+     image: "sequenceiq/hadoop-docker:2.7.1"
+     container_name: hadoop
+     environment:
+       - PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/java/default/bin:/usr/local/hadoop/bin
+     volumes:
+       - ./data:/home
+     ports:
+       - "50070:50070"
+       - "9000:9000"
+       - "50075:50075"
+     networks:
+       - default-network
+
+networks:
+   default-network:
+     name: default-network
+     ipam:
+       driver: default
+       config:
+         - subnet: 192.168.240.0/24
